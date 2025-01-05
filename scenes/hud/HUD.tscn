@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://brvfy7db2k7q7"]
+
+[ext_resource type="Script" path="res://scenes/hud/Hud.cs" id="1_1vlqj"]
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_1vlqj")
+
+[node name="HealthLabel" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 63.0
+offset_bottom = 33.0
+theme_override_colors/font_color = Color(1, 0.477854, 0.410057, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+text = "HP: ???"
