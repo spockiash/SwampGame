@@ -10,17 +10,19 @@ public partial class Player : CharacterBody2D
     [Export] public int Speed { get; set; } = 120;
     [Export] public float Gravity { get; set; } = 500f;
     [Export] public float JumpStrength { get; set; } = 200f;
-    [Export] public float AttackCooldown { get; set; } = 0.8f;
+    [Export] public float AttackCooldown { get; set; } = 1.0f;
     
     // Sprite references
+    private AnimationPlayer _animationPlayer;
     private AnimatedSprite2D _animatedSprite;
     private CharacterState _state = CharacterState.Idle;
     private RayCast2D _rayCast;
-    private double _attackDuration = 1.2f; // Adjust this based on your animation length
+    private double _attackDuration = 1.0f; // Adjust this based on your animation length
     private double _attackStateTimer = 0.0f;
     private int _lastDirection = 1; // 1 = right, -1 = left, default facing right
 
     // Animation constants
+    private const string AnimationPlayer = "AnimationPlayer";
     private const string AnimatedSpriteNode = "AnimatedSprite2D";
     private const string RaycastNode = "RayCast2D";
     private const string WalkAnimation = "walk";
@@ -37,6 +39,7 @@ public partial class Player : CharacterBody2D
 
     public override void _Ready()
     {
+        _animationPlayer = GetNode<AnimationPlayer>(AnimationPlayer);
         _animatedSprite = GetNode<AnimatedSprite2D>(AnimatedSpriteNode);
         _rayCast = GetNode<RayCast2D>(RaycastNode);
         HealthManager.Instance.ResetHealth();
@@ -146,12 +149,10 @@ public partial class Player : CharacterBody2D
     private void HandleAnimation()
     {
         // Which animation should play?
-        GD.Print($"Current state: {_state}");
         var targetAnimation = MapStateToAnimation(_state);
-        if (_animatedSprite.Animation != targetAnimation)
+        if (_animationPlayer.CurrentAnimation != targetAnimation)
         {
-            _animatedSprite.Animation = targetAnimation;
-            _animatedSprite.Play();
+            _animationPlayer.Play(targetAnimation);
         }
 
         // Determine direction based on _lastDirection
