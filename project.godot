@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 HealthManager="*res://src/managers/HealthManager.cs"
 SpiderManager="*res://src/managers/SpiderManager.cs"
+InventoryManager="*res://src/managers/InventoryManager.cs"
 
 [display]
 
