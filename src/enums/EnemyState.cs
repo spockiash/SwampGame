@@ -5,5 +5,6 @@ public enum EnemyState
     Idle,
     Walk,
     Jump,
-    Attack
+    Attack,
+    Terminated
 }

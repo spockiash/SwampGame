@@ -10,20 +10,22 @@ public partial class Player : CharacterBody2D
     [Export] public int Speed { get; set; } = 120;
     [Export] public float Gravity { get; set; } = 500f;
     [Export] public float JumpStrength { get; set; } = 200f;
-    [Export] public float AttackCooldown { get; set; } = 1.0f;
+    [Export] public float AttackCooldown { get; set; } = 0.6f;
     
     // Sprite references
     private AnimationPlayer _animationPlayer;
     private AnimatedSprite2D _animatedSprite;
+    private AnimatedSprite2D _attackEffect;
     private CharacterState _state = CharacterState.Idle;
     private RayCast2D _rayCast;
-    private double _attackDuration = 1.0f; // Adjust this based on your animation length
+    private double _attackDuration = 0.55f; // Adjust this based on your animation length
     private double _attackStateTimer = 0.0f;
     private int _lastDirection = 1; // 1 = right, -1 = left, default facing right
 
     // Animation constants
     private const string AnimationPlayer = "AnimationPlayer";
     private const string AnimatedSpriteNode = "AnimatedSprite2D";
+    private const string AttackEffect = "AttackEffect";
     private const string RaycastNode = "RayCast2D";
     private const string WalkAnimation = "walk";
     private const string JumpAnimation = "jump";
@@ -41,6 +43,7 @@ public partial class Player : CharacterBody2D
     {
         _animationPlayer = GetNode<AnimationPlayer>(AnimationPlayer);
         _animatedSprite = GetNode<AnimatedSprite2D>(AnimatedSpriteNode);
+        _attackEffect = GetNode<AnimatedSprite2D>(AttackEffect);
         _rayCast = GetNode<RayCast2D>(RaycastNode);
         HealthManager.Instance.ResetHealth();
         // Initialize the sprite’s default position/origin to the "right" offset
@@ -52,35 +55,12 @@ public partial class Player : CharacterBody2D
     {
         Vector2 velocity = Velocity;
         velocity.X = GetInputX() * Speed;
+        velocity = GetInputActions(velocity);
+        velocity = ApplyGravity(velocity, delta);
         
         // Handle cooldown timers
         HandleAttackCooldownTimer(delta);
         
-        // Attack 1
-        if (Input.IsActionJustPressed("attack_1"))
-        {
-            _state = CharacterState.AttackOne;
-            PerformAttack();
-        }
-
-        // Jump
-        if (IsOnFloor() && Input.IsActionJustPressed("jump"))
-        {
-            velocity.Y = -JumpStrength;
-            _state = CharacterState.Jumping;
-        }
-
-        // Gravity
-        if (!IsOnFloor())
-        {
-            velocity.Y += Gravity * (float)delta;
-        }
-        else
-        {
-            if (velocity.Y > 0) 
-                velocity.Y = 0;
-        }
-
         // Move
         Velocity = velocity;
         MoveAndSlide();
@@ -92,6 +72,21 @@ public partial class Player : CharacterBody2D
         HandleAnimation();
     }
 
+    private Vector2 ApplyGravity(Vector2 velocity, double delta)
+    {
+        if (!IsOnFloor())
+        {
+            velocity.Y += Gravity * (float)delta;
+        }
+        else
+        {
+            if (velocity.Y > 0) 
+                velocity.Y = 0;
+        }
+        
+        return velocity;
+    }
+    
     private int GetInputX()
     {
         int xInput = 0;
@@ -107,6 +102,25 @@ public partial class Player : CharacterBody2D
         }
 
         return xInput;
+    }
+
+    private Vector2 GetInputActions(Vector2 velocity)
+    {
+        // Attack 1
+        if (Input.IsActionJustPressed("attack_1"))
+        {
+            _state = CharacterState.AttackOne;
+            PerformAttack();
+        }
+
+        // Jump
+        if (IsOnFloor() && Input.IsActionJustPressed("jump"))
+        {
+            velocity.Y = -JumpStrength;
+            _state = CharacterState.Jumping;
+        }
+        
+        return velocity;
     }
 
     private void UpdateState()
@@ -155,9 +169,31 @@ public partial class Player : CharacterBody2D
             _animationPlayer.Play(targetAnimation);
         }
 
+        FlipAttackEffect();
+        FlipPlayerSprite();
+    }
+
+    private void FlipAttackEffect()
+    {
+        // Get the current local position of the attack effect
+        var fxPosition = _attackEffect.Position;
+
+        // Flip vertically by inverting the Y position relative to a baseline
+        if (_lastDirection > 0) // Facing right
+        {
+            _attackEffect.Position = new Vector2(Mathf.Abs(fxPosition.X), fxPosition.Y); // Normal orientation
+        }
+        else // Facing left
+        {
+            _attackEffect.Position = new Vector2(-Mathf.Abs(fxPosition.X), fxPosition.Y); // Flipped vertically
+        }
+    }
+
+    private void FlipPlayerSprite()
+    {
         // Determine direction based on _lastDirection
         bool isMovingLeft = (_lastDirection < 0);
-
+        
         // Flip sprite and rotate RayCast2D only if the direction changes
         if (_animatedSprite.FlipH != isMovingLeft)
         {
@@ -176,7 +212,6 @@ public partial class Player : CharacterBody2D
             }
         }
     }
-
 
     private static string MapStateToAnimation(CharacterState state)
     {

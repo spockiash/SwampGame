@@ -22,6 +22,7 @@ public partial class Spider : CharacterBody2D
     private const string ANIM_WALK   = "walk";
     private const string ANIM_JUMP   = "jump";
     private const string ANIM_ATTACK = "attack_bite";
+    private const string ANIM_RIP = "rip";
 
     private AnimatedSprite2D _animatedSprite;
     private EnemyState _state = EnemyState.Idle;
@@ -34,12 +35,15 @@ public partial class Spider : CharacterBody2D
 
     // Whether the spider has seen the player at least once recently
     private bool _hasSightedPlayer = false;
+    private AnimationPlayer _animationPlayer;
 
     public override void _Ready()
     {
+        _animationPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
         _animatedSprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
-        _animatedSprite.Play(ANIM_IDLE);
-
+        
+        _animationPlayer.Play(ANIM_IDLE);
+        
         // If your Player node is literally named "Player" somewhere under root:
         _player = GetTree().Root.FindChild("Player", true, false) as Node2D;
         SpiderManager.Instance.RegisterEnemy(this);
@@ -103,6 +107,11 @@ public partial class Spider : CharacterBody2D
             return;
         }
 
+        if (_state == EnemyState.Terminated)
+        {
+            return;
+        }
+
         float distance = GlobalPosition.DistanceTo(_player.GlobalPosition);
 
         // If the player is farther than DetectionRange AND 
@@ -157,6 +166,17 @@ public partial class Spider : CharacterBody2D
         }
     }
 
+    // Callback for animation_finished signal
+    private void OnAnimationPlayerAnimationFinished(string animationName)
+    {
+        GD.Print($"Animation '{animationName}' finished.");
+        
+        // Add your custom logic here, e.g., transitioning states or playing another animation.
+        if (animationName == ANIM_RIP)
+        {
+            QueueFree(); // Remove enemy from the scene after death animation.
+        }
+    }
 
     private void FacePlayer()
     {
@@ -178,6 +198,9 @@ public partial class Spider : CharacterBody2D
             case EnemyState.Walk:
                 PlayAnimationIfNot(ANIM_WALK);
                 break;
+            case EnemyState.Terminated:
+                PlayAnimationIfNot(ANIM_RIP);
+                break;
             default:
                 PlayAnimationIfNot(ANIM_IDLE);
                 break;
@@ -186,10 +209,9 @@ public partial class Spider : CharacterBody2D
 
     private void PlayAnimationIfNot(string anim)
     {
-        if (_animatedSprite.Animation != anim)
+        if (_animationPlayer.CurrentAnimation != anim)
         {
-            _animatedSprite.Animation = anim;
-            _animatedSprite.Play();
+            _animationPlayer.Play(anim);
         }
     }
 
@@ -276,7 +298,10 @@ public partial class Spider : CharacterBody2D
         // If health is below zero monster dies
         if (Health <= 0)
         {
-            QueueFree();
+            _state = EnemyState.Terminated;
+            // Remove from physics layers
+            CollisionLayer = 0;
+            CollisionMask = 0;
             // After death
             SpiderManager.Instance.UnregisterEnemy(this);
         }
