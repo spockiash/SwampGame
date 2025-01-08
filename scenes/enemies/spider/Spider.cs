@@ -5,6 +5,11 @@ using SwampGame.src.enums;
 
 public partial class Spider : CharacterBody2D
 {
+    [Export] public NodePath PlatformLayerPath;
+
+    private PlatformLayer _platformLayer;
+    private Vector2[] _currentPath;
+    private int _pathIndex = 0;
     [Export] public float DetectionRange { get; set; } = 180f;
     [Export] public float BiteRange      { get; set; } = 40f;
     [Export] public float Gravity        { get; set; } = 500f;
@@ -39,6 +44,7 @@ public partial class Spider : CharacterBody2D
 
     public override void _Ready()
     {
+        _platformLayer = GetNode<PlatformLayer>(PlatformLayerPath);
         _animationPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
         _animatedSprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
         
@@ -92,10 +98,80 @@ public partial class Spider : CharacterBody2D
         }
 
         Velocity = velocity;
-        MoveAndSlide();
+        if (_state == EnemyState.Walk)
+        {
+            // Update path and navigate
+            UpdatePathToPlayer();
+            Navigate((float)delta);
+        }
+        else if (_state == EnemyState.Attack)
+        {
+            PerformAttack();
+            Velocity = new Vector2(0, Velocity.Y); // Stop horizontal movement
+            MoveAndSlide();
+        }
+        else
+        {
+            // Idle
+            Velocity = new Vector2(0, Velocity.Y);
+            MoveAndSlide();
+        }
 
         // 5) Play the correct animation
         HandleAnimation();
+    }
+    
+    private void Navigate(float delta)
+    {
+        if (_currentPath == null || _pathIndex >= _currentPath.Length)
+            return;
+
+        Vector2 target = _currentPath[_pathIndex];
+        Vector2 direction = (target - GlobalPosition).Normalized();
+
+        // Check if a jump is needed
+        if (target.Y < GlobalPosition.Y - 10 && IsOnFloor())
+        {
+            Velocity = new Vector2(Velocity.X, -JumpStrength);
+        }
+        else
+        {
+            // Move horizontally toward the target
+            Velocity = new Vector2(direction.X * MoveSpeed, Velocity.Y);
+        }
+
+        // Move to the next waypoint if close
+        if (GlobalPosition.DistanceTo(target) < 10f)
+        {
+            _pathIndex++;
+        }
+
+        // Apply gravity and move
+        if (!IsOnFloor())
+        {
+            Velocity = new Vector2(Velocity.X, Velocity.Y + Gravity * delta);
+        }
+
+        MoveAndSlide();
+    }
+    
+    private void UpdatePathToPlayer()
+    {
+        if (_player == null || _platformLayer == null)
+            return;
+
+        // Update the path if we're at the last waypoint or if the player moved significantly
+        if (_currentPath == null || _pathIndex >= _currentPath.Length - 1 || ShouldRecalculatePath())
+        {
+            _currentPath = _platformLayer.GetPath(GlobalPosition, _player.GlobalPosition);
+            _pathIndex = 0;
+        }
+    }
+    
+    private bool ShouldRecalculatePath()
+    {
+        float distanceToPlayer = GlobalPosition.DistanceTo(_player.GlobalPosition);
+        return distanceToPlayer > DetectionRange / 2 || _pathIndex >= _currentPath.Length;
     }
 
     private void UpdateState()

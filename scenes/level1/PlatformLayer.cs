@@ -47,6 +47,26 @@ public partial class PlatformLayer : TileMapLayer
 	public override void _Process(double delta)
 	{
 	}
+	
+	// Expose a method to get the closest graph point
+	public long GetClosestGraphPoint(Vector2 position)
+	{
+		return _astarGraph.GetClosestPoint(position);
+	}
+
+// Expose a method to get the path between two points
+	public Vector2[] GetPath(Vector2 fromPosition, Vector2 toPosition)
+	{
+		long startPoint = _astarGraph.GetClosestPoint(fromPosition);
+		long endPoint = _astarGraph.GetClosestPoint(toPosition);
+
+		if (startPoint != -1 && endPoint != -1)
+		{
+			return _astarGraph.GetPointPath(startPoint, endPoint).ToArray();
+		}
+
+		return new Vector2[0];
+	}
 
 	private void BuildGraph()
 	{

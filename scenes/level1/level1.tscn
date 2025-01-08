@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=4 uid="uid://c0w7cca5jlpob"]
+[gd_scene load_steps=20 format=4 uid="uid://c0w7cca5jlpob"]
 
 [ext_resource type="Texture2D" uid="uid://dbm0078wdvhex" path="res://content/art/swamp_tiles/2 Background/Background.png" id="1_j6ptd"]
 [ext_resource type="Texture2D" uid="uid://bxt4ey8dgn14n" path="res://content/art/swamp_tiles/1 Tiles/Tileset.png" id="1_khiik"]
@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://dfs38xss62qfh" path="res://content/art/swamp_tiles/2 Background/Layers/5.png" id="5_m2bft"]
 [ext_resource type="Script" path="res://scenes/level1/PlatformLayer.cs" id="7_bpc06"]
 [ext_resource type="PackedScene" uid="uid://clb1hhbcaw6cl" path="res://scenes/player/player.tscn" id="7_m63f5"]
+[ext_resource type="PackedScene" uid="uid://birr7ujdli5aa" path="res://scenes/enemies/spider/Spider.tscn" id="9_n6a3t"]
 [ext_resource type="PackedScene" uid="uid://brvfy7db2k7q7" path="res://scenes/hud/HUD.tscn" id="10_2l58l"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_434kc"]
@@ -2837,3 +2838,7 @@ position = Vector2(286, 342)
 [node name="Enemies" type="Node" parent="."]
 
 [node name="HUD" parent="." instance=ExtResource("10_2l58l")]
+
+[node name="Spider" parent="." instance=ExtResource("9_n6a3t")]
+position = Vector2(483, 174)
+PlatformLayerPath = NodePath("../PlatformLayer")
