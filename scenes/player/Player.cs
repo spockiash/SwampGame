@@ -9,7 +9,7 @@ public partial class Player : CharacterBody2D
 
     [Export] public int Speed { get; set; } = 120;
     [Export] public float Gravity { get; set; } = 500f;
-    [Export] public float JumpStrength { get; set; } = 200f;
+    [Export] public float JumpStrength { get; set; } = 200;
     [Export] public float AttackCooldown { get; set; } = 0.6f;
     
     // Sprite references

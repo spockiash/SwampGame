@@ -9,6 +9,11 @@ public partial class PlatformLayer : TileMapLayer
 {
 	[Export]
 	public bool ShowDebugGraph = true;
+	
+	[Export]
+	public int JumpDistance = 5;                       // Distance between two tiles to count as a jump
+	[Export]
+	public int JumpHeight = 4;   
 	private const int CollisionLayer = 0;
 	private const int CellIsEmpty = -1;
 	private const int MaxFallScanDepth = 500;
@@ -30,6 +35,14 @@ public partial class PlatformLayer : TileMapLayer
 		BuildGraph();
 	}
 
+	public override void _Draw()
+	{
+		if (ShowDebugGraph)
+		{
+			ConnectPoints();
+		}
+	}
+
 	// Called every frame. 'delta' is the elapsed time since the previous frame.
 	public override void _Process(double delta)
 	{
@@ -38,6 +51,18 @@ public partial class PlatformLayer : TileMapLayer
 	private void BuildGraph()
 	{
 		AddGraphPoints();
+		// If the debug graph should not be shown
+		if (!ShowDebugGraph)
+		{
+			ConnectPoints();    // Connect the points
+		}
+	}
+
+	private void DrawDebugLine(Vector2 to, Vector2 from, Color color)
+	{
+		if(!ShowDebugGraph)
+			return;
+		DrawLine(to, from, color);
 	}
 
 	private void AddGraphPoints()
@@ -87,6 +112,172 @@ public partial class PlatformLayer : TileMapLayer
 		}
 		return fallTile;    // return the fall tile result
 	}
+
+	#region Connect graph points
+
+	public void ConnectPoints()
+	{
+		foreach (var point1 in _pointInfoList)
+		{
+			ConnectHorizontalPoints(point1);
+			ConnectJumpPoints(point1);
+			ConnectFallPoint(point1);
+		}
+	}
+	private void ConnectFallPoint(PointInfo p1)
+	{
+		if (p1.IsLeftEdge || p1.IsRightEdge)
+		{
+			var tilePos = LocalToMap(p1.Position);
+			// FindFallPoint expects the exact tile coordinate. The points in the graph is one tile above: y-1			
+			// Therefore we adjust the y position with: Y += 1
+			tilePos.Y += 1;
+
+			Vector2I? fallPoint = FindFallPoint(tilePos);
+			if (fallPoint != null)
+			{
+				var pointInfo = GetPointInfo((Vector2I)fallPoint);
+				Vector2 p2Map = LocalToMap(p1.Position);
+				Vector2 p1Map = LocalToMap(pointInfo.Position);
+
+				if (p1Map.DistanceTo(p2Map) <= JumpHeight)
+				{
+					_astarGraph.ConnectPoints(p1.PointId, pointInfo.PointId);                       // Connect the points
+					DrawDebugLine(p1.Position, pointInfo.Position, new Color(0, 1, 0, 1));          // Draw a Green line between the points
+				}
+				else
+				{
+					_astarGraph.ConnectPoints(p1.PointId, pointInfo.PointId, bidirectional: false);  // Only allow edge -> fallTile direction
+					DrawDebugLine(p1.Position, pointInfo.Position, new Color(1, 1, 0, 1));          // Draw a yellow line between the points									
+				}
+			}
+		}
+	}
+	private void ConnectJumpPoints(PointInfo p1)
+	{
+		foreach (var p2 in _pointInfoList)
+		{
+			ConnectHorizontalPlatformJumps(p1, p2);
+			ConnectDiagonalJumpRightEdgeToLeftEdge(p1, p2);
+			ConnectDiagonalJumpLeftEdgeToRightEdge(p1, p2);
+		}
+	}
+	private void ConnectDiagonalJumpRightEdgeToLeftEdge(PointInfo p1, PointInfo p2)
+	{
+		if (p1.IsRightEdge)
+		{
+			Vector2 p1Map = LocalToMap(p1.Position);
+			Vector2 p2Map = LocalToMap(p2.Position);
+
+			if (p2.IsLeftEdge                                                   // If the p2 tile is a right edge
+			    && p2.Position.X > p1.Position.X                                    // And the p2 tile is to the right of the p1 tile
+			    && p2.Position.Y > p1.Position.Y                                    // And the p2 tile is below the p1 tile
+			    && p2Map.DistanceTo(p1Map) < JumpDistance)                          // And the distance between the p2 and p1 map position is within jump reach
+			{
+				_astarGraph.ConnectPoints(p1.PointId, p2.PointId);              // Connect the points
+				DrawDebugLine(p1.Position, p2.Position, new Color(0, 1, 0, 1)); // Draw a green line between the points
+			}
+		}
+	}
+
+	private void ConnectDiagonalJumpLeftEdgeToRightEdge(PointInfo p1, PointInfo p2)
+	{
+		if (p1.IsLeftEdge)
+		{
+			Vector2 p1Map = LocalToMap(p1.Position);
+			Vector2 p2Map = LocalToMap(p2.Position);
+			if (p2.IsRightEdge                                                  // If the p2 tile is a right edge
+			    && p2.Position.X < p1.Position.X                                    // and the p2 tile is to the left of the p1 tile
+			    && p2.Position.Y > p1.Position.Y                                    // and the p2 tile is below the p1 tile
+			    && p2Map.DistanceTo(p1Map) < JumpDistance)                          // And the distance between the p2 and p1 map position is within jump reach
+			{
+				_astarGraph.ConnectPoints(p1.PointId, p2.PointId);              // Connect the points
+				DrawDebugLine(p1.Position, p2.Position, new Color(0, 1, 0, 1)); // Draw a green line between the points
+			}
+		}
+	}
+	private void ConnectHorizontalPlatformJumps(PointInfo p1, PointInfo p2)
+	{
+		if (p1.PointId == p2.PointId) { return; } // If the points are the same, return out of the method
+
+		// If the points are on the same height and p1 is a right edge, and p2 is a left edge	
+		if (p2.Position.Y == p1.Position.Y && p1.IsRightEdge && p2.IsLeftEdge)
+		{
+			// If the p2 position is to the right of the p1 position
+			if (p2.Position.X > p1.Position.X)
+			{
+				Vector2 p2Map = LocalToMap(p2.Position);    // Get the p2 tile position
+				Vector2 p1Map = LocalToMap(p1.Position);    // Get the p1 tile position				
+
+				// If the distance between the p2 and p1 map position are within jump reach
+				if (p2Map.DistanceTo(p1Map) < JumpDistance + 1)
+				{
+					_astarGraph.ConnectPoints(p1.PointId, p2.PointId);              // Connect the points
+					DrawDebugLine(p1.Position, p2.Position, new Color(0, 1, 0, 1)); // Draw a green line between the points
+				}
+			}
+		}
+	}
+	
+	private void ConnectHorizontalPoints(PointInfo p1)
+	{
+		if (p1.IsLeftEdge || p1.IsLeftWall || p1.IsFallTile)
+		{
+			PointInfo closest = null;
+
+			// Loop through the point info list
+			foreach (var p2 in _pointInfoList)
+			{
+				if (p1.PointId == p2.PointId) { continue; } // If the points are the same, go to the next point
+
+				// If the point is a right edge or a right wall, and the height (Y position) is the same, and the p2 position is to the right of the p1 point
+				if ((p2.IsRightEdge || p2.IsRightWall || p2.IsFallTile) && p2.Position.Y == p1.Position.Y && p2.Position.X > p1.Position.X)
+				{
+					// If the closest point has not yet been initialized
+					if (closest == null)
+					{
+						closest = new PointInfo(p2.PointId, p2.Position);   // Initialize it to the p2 point
+					}
+					// If the p2 point is closer than the current closest point
+					if (p2.Position.X < closest.Position.X)
+					{
+						closest.Position = p2.Position; // Update the closest point position
+						closest.PointId = p2.PointId;   // Update the pointId
+					}
+				}
+			}
+			// If a closest point was found
+			if (closest != null)
+			{
+				// If a horizontal connection cannot be made
+				if (!HorizontalConnectionCannotBeMade((Vector2I)p1.Position, (Vector2I)closest.Position))
+				{
+					_astarGraph.ConnectPoints(p1.PointId, closest.PointId);                 // Connect the points
+					DrawDebugLine(p1.Position, closest.Position, new Color(0, 1, 0, 1));    // Draw a green line between the points
+				}
+			}
+		}
+	}
+	
+	private bool HorizontalConnectionCannotBeMade(Vector2I p1, Vector2I p2)
+	{
+		// Convert the position to tile coordinates
+		Vector2I startScan = LocalToMap(p1);
+		Vector2I endScan = LocalToMap(p2);
+
+		// Loop through all tiles between the points
+		for (int i = startScan.X; i < endScan.X; ++i)
+		{
+			if (GetCellSourceId(new Vector2I(i, startScan.Y)) != CellIsEmpty         // If the cell is not empty (a wall)
+			    || GetCellSourceId(new Vector2I(i, startScan.Y + 1)) == CellIsEmpty)     // or the cell below is empty (an edge tile)
+			{
+				return true;    // Return true, the connection cannot be made
+			}
+		}
+		return false;
+	}
+
+	#endregion
 	
 	#region Tile fall points
 	private void AddFallPoint(Vector2I tile)
