@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://bcpl7rpbi2gga"]
+
+[ext_resource type="Texture2D" uid="uid://b82xmvn02e1st" path="res://content/utilities/PathfindNode.png" id="1_qsufs"]
+
+[node name="GraphPoint" type="Sprite2D"]
+scale = Vector2(0.28125, 0.28125)
+texture = ExtResource("1_qsufs")
