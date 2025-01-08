@@ -65,58 +65,55 @@ public partial class PlatformLayer : TileMapLayer
 		return null;
 	}
 
-	private Vector2I? FindFallPoint(Vector2I tile)
+	private Vector2I? FindFallPoint(Vector2 tile)
 	{
-		var scan = GetStartScanTileForFallPoint((Vector2I)tile);
-		if (scan == null)
-			return null;
-		var tileScan = (Vector2I)scan;
-		Vector2I? fallTile = null; // init falltile
-		// loop and start to look for solid tile
-		for (int i = 0; i < MaxFallScanDepth; i++)
+		var scan = GetStartScanTileForFallPoint((Vector2I)tile);// Get the start scan tile position
+		if (scan == null) { return null; }                      // If it wasn't found, return out of the method
+
+		var tileScan = (Vector2I)scan;                          // Typecast nullable Vector2I? to Vector2I
+		Vector2I? fallTile = null;                              // Initialize the falltile to null
+
+		// Loop, and start to look for a solid tile
+		for (int i = 0; i < MaxFallScanDepth; ++i)
 		{
-			// if the tile cell below is solid
+			// If the tile cell below is solid
 			if (GetCellSourceId(new Vector2I(tileScan.X, tileScan.Y + 1)) != CellIsEmpty)
 			{
-				fallTile = tileScan; // the tile was found
-				break; // break out at the end of  the loop
+				fallTile = tileScan;    // The fall tile was found
+				break;                  // Break out of the for loop
 			}
-			// if solid tile was not found, scan the next tile below
+			// If a solid tile was not found, scan the next tile below the current one
 			tileScan.Y++;
 		}
-		return fallTile; // return the found fall tile
+		return fallTile;    // return the fall tile result
 	}
 	
 	#region Tile fall points
 	private void AddFallPoint(Vector2I tile)
 	{
-		Vector2I? fallTile = FindFallPoint(tile);
-		if (fallTile == null)
-			return;
-		var fallTileLocal = (Vector2I)MapToLocal((Vector2I)fallTile);
-		
-		long existingPointId = TileAlreadyExistInGraph((Vector2I)fallTile);
-		
-		// If the point has not been added
+		Vector2I? fallTile = FindFallPoint(tile);                                           // Find the fall tile point
+		if (fallTile == null) { return; }                                                   // If the fall tile was not found, return out of the method
+		var fallTileLocal = (Vector2I)MapToLocal((Vector2I)fallTile);                       // Get the local coordinates for the fall tile
+
+		long existingPointId = TileAlreadyExistInGraph((Vector2I)fallTile);                 // Check if the point already has been added
+
+		// If the tile doesn't exist in the graph already
 		if (existingPointId == -1)
 		{
-			long pointId = _astarGraph.GetAvailablePointId();
-			// Create new point info object
-			var pointInfo = new PointInfo(pointId, fallTileLocal);
-			// Flag the tile as fall tile
-			pointInfo.IsFallTile = true;
-			// Add the tile to point info list
-			_pointInfoList.Add(pointInfo);
-			// Ad the point to the astar graph
-			_astarGraph.AddPoint(pointId, fallTileLocal);
-			AddVisualPoint((Vector2I)fallTileLocal, new Color("#FF0000"), scale: 0.35f);
+			long pointId = _astarGraph.GetAvailablePointId();                               // Get the next available point id
+			var pointInfo = new PointInfo(pointId, fallTileLocal);                          // Create point information, and pass in the pointId and tile
+			pointInfo.IsFallTile = true;                                                    // Flag that the tile is a fall tile
+			_pointInfoList.Add(pointInfo);                                                  // Add the tile to the point info list
+			_astarGraph.AddPoint(pointId, fallTileLocal);                                   // Add the point to the Astar graph, in local coordinates
+			AddVisualPoint((Vector2I)fallTile, new Color(1, 0.35f, 0.1f, 1), scale: 0.35f); // Add the point visually to the map (if ShowDebugGraph = true)
 		}
 		else
 		{
-			_pointInfoList.Single(x => x.PointId == existingPointId).IsFallTile = true;
-			AddVisualPoint((Vector2I)fallTileLocal, new Color("#ef7d57"), scale: 0.35f);
+			_pointInfoList.Single(x => x.PointId == existingPointId).IsFallTile = true;     // flag that it's a fall point			
+			var updateInfo = _pointInfoList.Find(x => x.PointId == existingPointId);        // Find the existing point info
+			updateInfo.IsFallTile = true;                                                   // Flag that it's a fall tile				
+			AddVisualPoint((Vector2I)fallTile, new Color("#ef7d57"), scale: 0.30f);         // Add the point visually to the map (if ShowDebugGraph = true)
 		}
-		
 	}
 	
 	private Vector2I? GetStartScanTileForFallPoint(Vector2I tile)
