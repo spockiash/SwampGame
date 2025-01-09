@@ -53,8 +53,119 @@ public partial class PlatformLayer : TileMapLayer
 	{
 		return _astarGraph.GetClosestPoint(position);
 	}
+	
+	private PointInfo GetPointInfoAtPosition(Vector2 position)
+	{
+		var newInfoPoint = new PointInfo(-10000, position);     // Create a new PointInfo with the position
+		newInfoPoint.IsPositionPoint = true;                    // Mark it as a position point
+		var tile = LocalToMap(position);                        // Get the tile position		
 
-// Expose a method to get the path between two points
+		// If a tile is found below
+		if (GetCellSourceId(new Vector2I(tile.X, tile.Y + 1)) != CellIsEmpty)
+		{
+			// If a tile exist to the left
+			if (GetCellSourceId(new Vector2I(tile.X - 1, tile.Y)) != CellIsEmpty)
+			{
+				newInfoPoint.IsLeftWall = true;   // Flag that it's a left wall
+			}
+			// If a tile exist to the right
+			if (GetCellSourceId(new Vector2I(tile.X + 1, tile.Y)) != CellIsEmpty)
+			{
+				newInfoPoint.IsRightWall = true;  // Flag that it's a right wall
+			}
+			// If a tile doesn't exist one tile below to the left
+			if (GetCellSourceId(new Vector2I(tile.X - 1, tile.Y + 1)) != CellIsEmpty)
+			{
+				newInfoPoint.IsLeftEdge = true;  // Flag that it's a left edge
+			}
+			// If a tile doesn't exist one tile below to the right
+			if (GetCellSourceId(new Vector2I(tile.X + 1, tile.Y + 1)) != CellIsEmpty)
+			{
+				newInfoPoint.IsRightEdge = true;  // Flag that it's a right edge
+			}
+		}
+		return newInfoPoint;
+	}
+	
+	private System.Collections.Generic.Stack<PointInfo> ReversePathStack(System.Collections.Generic.Stack<PointInfo> pathStack)
+	{
+		System.Collections.Generic.Stack<PointInfo> pathStackReversed = new System.Collections.Generic.Stack<PointInfo>();
+		// Reverse the path stack. It is like emptying a bucket of stones from one bucket to another. 
+		// The stones at the top, will be in the bottom of the other bucket.
+		while (pathStack.Count != 0)
+		{
+			pathStackReversed.Push(pathStack.Pop());
+		}
+		return pathStackReversed;
+	}
+
+	public System.Collections.Generic.Stack<PointInfo> GetPlaform2DPath(Vector2 startPos, Vector2 endPos)
+	{
+		System.Collections.Generic.Stack<PointInfo> pathStack = new System.Collections.Generic.Stack<PointInfo>();
+		// Find the path between the start and end position
+		var idPath = _astarGraph.GetIdPath(_astarGraph.GetClosestPoint(startPos), _astarGraph.GetClosestPoint(endPos));
+
+		if (idPath.Count() <= 0) { return pathStack; }      // If the the path has reached its goal, return the empty path stack
+
+		var startPoint = GetPointInfoAtPosition(startPos);  // Create the point for the start position		
+		var endPoint = GetPointInfoAtPosition(endPos);      // Create the point for the end position		
+		var numPointsInPath = idPath.Count();               // Get number of points in the astar path
+
+		// loop through all the points in the path
+		for (int i = 0; i < numPointsInPath; ++i)
+		{
+			var currPoint = GetInfoPointByPointId(idPath[i]);   // Get the current point in the idPath		
+
+			// If there's only one point in the path
+			if (numPointsInPath == 1)
+			{
+				continue;   // Skip the point in the aStar path, the end point will be added as the only path point at the end.
+			}
+			// If it's the first point in the astar path
+			if (i == 0 && numPointsInPath >= 2)
+			{
+				// Get the next second path point in the astar path
+				var secondPathPoint = GetInfoPointByPointId(idPath[i + 1]);
+
+				// If the start point is closer to the second path point than the current point
+				if (startPoint.Position.DistanceTo(secondPathPoint.Position) < currPoint.Position.DistanceTo(secondPathPoint.Position))
+				{
+					pathStack.Push(startPoint); // Add the start point to the path
+					continue;                   // Skip adding the current point and go to the next point in the path
+				}
+			}
+			// If it's the last point in the path 
+			else if (i == numPointsInPath - 1 && numPointsInPath >= 2)
+			{
+				// Get the penultimate point in the astar path list
+				var penultimatePoint = GetInfoPointByPointId(idPath[i - 1]);
+
+				// If the endPoint is closer than the last point in the astar path
+				if (endPoint.Position.DistanceTo(penultimatePoint.Position) < currPoint.Position.DistanceTo(penultimatePoint.Position))
+				{
+					continue;                   // Skip addig the last point to the path stack
+				}
+				// If the last point is closer
+				else
+				{
+					pathStack.Push(currPoint);  // Add the current point to the path stack
+					break;                      // Break out of the for loop
+				}
+			}
+
+			pathStack.Push(currPoint);      // Add the current point			
+		}
+		pathStack.Push(endPoint);           // Add the end point to the path		
+		return ReversePathStack(pathStack); // Return the pathstack reversed		
+	}
+	
+	private PointInfo GetInfoPointByPointId(long pointId)
+	{
+		// Find and return the first point in the _pointInfoList with the given pointId
+		return _pointInfoList.Where(p => p.PointId == pointId).FirstOrDefault();
+	}
+	
+	// Expose a method to get the path between two points
 	public Vector2[] GetPath(Vector2 fromPosition, Vector2 toPosition)
 	{
 		long startPoint = _astarGraph.GetClosestPoint(fromPosition);

@@ -8,8 +8,8 @@
 [ext_resource type="Texture2D" uid="uid://dfs38xss62qfh" path="res://content/art/swamp_tiles/2 Background/Layers/5.png" id="5_m2bft"]
 [ext_resource type="Script" path="res://scenes/level1/PlatformLayer.cs" id="7_bpc06"]
 [ext_resource type="PackedScene" uid="uid://clb1hhbcaw6cl" path="res://scenes/player/player.tscn" id="7_m63f5"]
-[ext_resource type="PackedScene" uid="uid://birr7ujdli5aa" path="res://scenes/enemies/spider/Spider.tscn" id="9_n6a3t"]
 [ext_resource type="PackedScene" uid="uid://brvfy7db2k7q7" path="res://scenes/hud/HUD.tscn" id="10_2l58l"]
+[ext_resource type="PackedScene" uid="uid://dycw72rpuodes" path="res://scenes/enemies/thing/Thing.tscn" id="10_70lb3"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_434kc"]
 texture = ExtResource("1_j6ptd")
@@ -2831,7 +2831,9 @@ tile_set = SubResource("TileSet_8s473")
 script = ExtResource("7_bpc06")
 
 [node name="Player" parent="." instance=ExtResource("7_m63f5")]
-position = Vector2(286, 342)
+position = Vector2(437, 164)
+Speed = 135
+JumpStrength = 250.0
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
 
@@ -2839,6 +2841,6 @@ position = Vector2(286, 342)
 
 [node name="HUD" parent="." instance=ExtResource("10_2l58l")]
 
-[node name="Spider" parent="." instance=ExtResource("9_n6a3t")]
-position = Vector2(483, 174)
-PlatformLayerPath = NodePath("../PlatformLayer")
+[node name="Thing" parent="." instance=ExtResource("10_70lb3")]
+position = Vector2(205, 354)
+scale = Vector2(1.04003, 0.52001)

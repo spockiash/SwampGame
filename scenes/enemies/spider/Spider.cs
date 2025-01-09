@@ -11,21 +11,19 @@ public partial class Spider : CharacterBody2D
     private Vector2[] _currentPath;
     private int _pathIndex = 0;
     [Export] public float DetectionRange { get; set; } = 180f;
-    [Export] public float BiteRange      { get; set; } = 40f;
-    [Export] public float Gravity        { get; set; } = 500f;
-    [Export] public float JumpStrength   { get; set; } = 200f;
-    [Export] public float MoveSpeed      { get; set; } = 60f;
-    [Export] public int   BiteDamage     { get; set; } = 15;
-    [Export] public float BiteCooldown   { get; set; } = 1.5f;
-    [Export]
-    public int Health { get; set; } = 50;
-    // How long the spider will keep chasing after losing line of sight
-    [Export] public float SightCooldown  { get; set; } = 1f;
+    [Export] public float BiteRange { get; set; } = 40f;
+    [Export] public float Gravity { get; set; } = 500f;
+    [Export] public float JumpStrength { get; set; } = 200f;
+    [Export] public float MoveSpeed { get; set; } = 60f;
+    [Export] public int BiteDamage { get; set; } = 15;
+    [Export] public float BiteCooldown { get; set; } = 1.5f;
+    [Export] public int Health { get; set; } = 50;
+    [Export] public float SightCooldown { get; set; } = 1f;
 
     // Animation keys
-    private const string ANIM_IDLE   = "idle";
-    private const string ANIM_WALK   = "walk";
-    private const string ANIM_JUMP   = "jump";
+    private const string ANIM_IDLE = "idle";
+    private const string ANIM_WALK = "walk";
+    private const string ANIM_JUMP = "jump";
     private const string ANIM_ATTACK = "attack_bite";
     private const string ANIM_RIP = "rip";
 
@@ -33,12 +31,9 @@ public partial class Spider : CharacterBody2D
     private EnemyState _state = EnemyState.Idle;
     private Node2D _player;
 
-    // Attack cooldown timer
     private float _attackTimer = 0.0f;
-    // Sight cooldown timer
     private float _sightTimer = 0.0f;
 
-    // Whether the spider has seen the player at least once recently
     private bool _hasSightedPlayer = false;
     private AnimationPlayer _animationPlayer;
 
@@ -47,80 +42,41 @@ public partial class Spider : CharacterBody2D
         _platformLayer = GetNode<PlatformLayer>(PlatformLayerPath);
         _animationPlayer = GetNode<AnimationPlayer>("AnimationPlayer");
         _animatedSprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
-        
+
         _animationPlayer.Play(ANIM_IDLE);
-        
-        // If your Player node is literally named "Player" somewhere under root:
+
         _player = GetTree().Root.FindChild("Player", true, false) as Node2D;
         SpiderManager.Instance.RegisterEnemy(this);
     }
 
     public override void _PhysicsProcess(double delta)
     {
-        // 1) Decrement timers
         HandleAttackCooldownTimer(delta);
         HandleSightCooldownTimer(delta);
 
-        // 2) Decide which AI state we're in (Idle, Walk, Attack)
         UpdateState();
-
-        // 3) Flip sprite to face the player (by position, not velocity)
         FacePlayer();
 
-        // 4) Apply gravity + horizontal movement
-        Vector2 velocity = Velocity;
-
-        // Gravity
-        if (!IsOnFloor())
-            velocity.Y += Gravity * (float)delta;
-        else if (velocity.Y > 0)
-            velocity.Y = 0;
-
-        switch (_state)
-        {
-            case EnemyState.Attack:
-                // In Attack range, do not move horizontally by design
-                PerformAttack();
-                velocity.X = 0;
-                break;
-
-            case EnemyState.Walk:
-                // Move horizontally toward the player's x-position
-                float diffX = _player.GlobalPosition.X - GlobalPosition.X;
-                float direction = MathF.Sign(diffX); 
-                velocity.X = direction * MoveSpeed;
-                break;
-
-            default:
-                // Idle or other -> no horizontal movement
-                velocity.X = 0;
-                break;
-        }
-
-        Velocity = velocity;
         if (_state == EnemyState.Walk)
         {
-            // Update path and navigate
             UpdatePathToPlayer();
             Navigate((float)delta);
         }
         else if (_state == EnemyState.Attack)
         {
             PerformAttack();
-            Velocity = new Vector2(0, Velocity.Y); // Stop horizontal movement
+            Velocity = new Vector2(0, Velocity.Y);
             MoveAndSlide();
         }
         else
         {
-            // Idle
             Velocity = new Vector2(0, Velocity.Y);
             MoveAndSlide();
         }
 
-        // 5) Play the correct animation
         HandleAnimation();
     }
-    
+
     private void Navigate(float delta)
     {
         if (_currentPath == null || _pathIndex >= _currentPath.Length)
@@ -129,45 +85,61 @@ public partial class Spider : CharacterBody2D
         Vector2 target = _currentPath[_pathIndex];
         Vector2 direction = (target - GlobalPosition).Normalized();
 
-        // Check if a jump is needed
+        GD.Print($"Current Position: {GlobalPosition}, Target: {target}, Direction: {direction}");
+
+        if ((direction.X < 0 && Velocity.X > 0) || (direction.X > 0 && Velocity.X < 0))
+        {
+            GD.Print("Spider moving in the wrong direction!");
+        }
+
         if (target.Y < GlobalPosition.Y - 10 && IsOnFloor())
         {
-            Velocity = new Vector2(Velocity.X, -JumpStrength);
+            Velocity = new Vector2(direction.X * MoveSpeed, -JumpStrength);
         }
         else
         {
-            // Move horizontally toward the target
             Velocity = new Vector2(direction.X * MoveSpeed, Velocity.Y);
         }
 
-        // Move to the next waypoint if close
         if (GlobalPosition.DistanceTo(target) < 10f)
         {
             _pathIndex++;
         }
 
-        // Apply gravity and move
         if (!IsOnFloor())
         {
             Velocity = new Vector2(Velocity.X, Velocity.Y + Gravity * delta);
         }
+        else if (Velocity.Y > 0)
+        {
+            Velocity = new Vector2(Velocity.X, 0);
+        }
 
         MoveAndSlide();
+
+        for (int i = 0; i < _currentPath.Length - 1; i++)
+        {
+            DebugDrawLine(_currentPath[i], _currentPath[i + 1], new Color(1, 0, 0));
+        }
     }
-    
+
+    private void DebugDrawLine(Vector2 from, Vector2 to, Color color)
+    {
+        DrawLine(from, to, color, 2);
+    }
+
     private void UpdatePathToPlayer()
     {
         if (_player == null || _platformLayer == null)
             return;
 
-        // Update the path if we're at the last waypoint or if the player moved significantly
         if (_currentPath == null || _pathIndex >= _currentPath.Length - 1 || ShouldRecalculatePath())
         {
             _currentPath = _platformLayer.GetPath(GlobalPosition, _player.GlobalPosition);
             _pathIndex = 0;
         }
     }
-    
+
     private bool ShouldRecalculatePath()
     {
         float distanceToPlayer = GlobalPosition.DistanceTo(_player.GlobalPosition);
@@ -190,9 +162,6 @@ public partial class Spider : CharacterBody2D
 
         float distance = GlobalPosition.DistanceTo(_player.GlobalPosition);
 
-        // If the player is farther than DetectionRange AND 
-        // the spider hasn't sighted the player recently, just Idle.
-        // (No line-of-sight checks if we've never seen them yet.)
         if (distance > DetectionRange && !_hasSightedPlayer)
         {
             _state = EnemyState.Idle;
@@ -200,34 +169,24 @@ public partial class Spider : CharacterBody2D
             return;
         }
 
-        // If we get here, either the player is inside detection range
-        // or we've sighted the player recently (and we haven't used up the sight timer).
         bool canSee = HasLineOfSight();
 
-        // If spider *currently* sees the player, reset the sight timer
         if (canSee)
         {
-            _hasSightedPlayer = true; 
-            _sightTimer = SightCooldown; 
+            _hasSightedPlayer = true;
+            _sightTimer = SightCooldown;
         }
 
-        // 1) Attack if close enough AND we currently see the player
         if (distance <= BiteRange && canSee)
         {
             _state = EnemyState.Attack;
         }
-        // 2) Walk if:
-        //   - Player is within detection range and spider sees the player, OR
-        //   - The spider has sighted the player recently and the sight timer hasn't expired
-        else if ((distance <= DetectionRange && canSee) 
-                 || (_hasSightedPlayer && _sightTimer > 0f))
+        else if ((distance <= DetectionRange && canSee) || (_hasSightedPlayer && _sightTimer > 0f))
         {
             _state = EnemyState.Walk;
         }
         else
         {
-            // If the spider hasn't seen the player recently (sightTimer = 0),
-            // or the player is now far out of range, idle
             if (_sightTimer <= 0f)
             {
                 _state = EnemyState.Idle;
@@ -235,31 +194,24 @@ public partial class Spider : CharacterBody2D
             }
             else
             {
-                // Even if we can't see the player at this exact moment,
-                // we haven't run out the sight timer yet, so keep walking.
                 _state = EnemyState.Walk;
             }
         }
     }
 
-    // Callback for animation_finished signal
     private void OnAnimationPlayerAnimationFinished(string animationName)
     {
-        GD.Print($"Animation '{animationName}' finished.");
-        
-        // Add your custom logic here, e.g., transitioning states or playing another animation.
         if (animationName == ANIM_RIP)
         {
-            QueueFree(); // Remove enemy from the scene after death animation.
+            QueueFree();
         }
     }
 
     private void FacePlayer()
     {
-        if (_player == null) 
+        if (_player == null)
             return;
 
-        // Face right if spider.x < player.x, else face left
         bool shouldFaceRight = (GlobalPosition.X < _player.GlobalPosition.X);
         _animatedSprite.FlipH = shouldFaceRight;
     }
@@ -303,8 +255,6 @@ public partial class Spider : CharacterBody2D
 
     private void HandleSightCooldownTimer(double delta)
     {
-        // If we're currently not seeing the player, the timer counts down.
-        // (We only reset it when 'canSee' is true in UpdateState.)
         if (_sightTimer > 0f)
         {
             _sightTimer -= (float)delta;
@@ -317,19 +267,12 @@ public partial class Spider : CharacterBody2D
     {
         if (_attackTimer <= 0f)
         {
-            // Actually deal damage
             HealthManager.Instance.ApplyDamage(BiteDamage);
             GD.Print($"Spider attacked, dealing {BiteDamage} damage to the player.");
-
-            // Reset the attack cooldown
             _attackTimer = BiteCooldown;
         }
     }
 
-    /// <summary>
-    /// Godot 4: Raycast from this spider's position to the player's position.
-    /// If the first collider we hit is the player, line of sight is clear.
-    /// </summary>
     private bool HasLineOfSight()
     {
         if (_player == null)
@@ -337,27 +280,14 @@ public partial class Spider : CharacterBody2D
 
         var spaceState = GetWorld2D().DirectSpaceState;
 
-        // Construct ray parameters
-        var query = PhysicsRayQueryParameters2D.Create(
-            GlobalPosition,
-            _player.GlobalPosition
-        );
-
-        // Optionally exclude this spider's own collision
-        // query.Exclude = new Godot.Collections.Array { this };
-
+        var query = PhysicsRayQueryParameters2D.Create(GlobalPosition, _player.GlobalPosition);
         var result = spaceState.IntersectRay(query);
 
-        // If no collision, direct line of sight
         if (result.Count == 0)
             return true;
 
-        // If there's a collision, see if it's the player
-        // In Godot 4 C#, "collider" can be an 'object' or instance ID, but often "collider" is an actual object
-        // If it's "collider_id", you'd do an ID lookup.
         if (!result.ContainsKey("collider"))
         {
-            // If there's no 'collider' key, check 'collider_id' or treat it as blocked
             return false;
         }
 
@@ -371,14 +301,11 @@ public partial class Spider : CharacterBody2D
     {
         Health -= damage;
         GD.Print($"Spider took {damage}, with {Health} HP left");
-        // If health is below zero monster dies
         if (Health <= 0)
         {
             _state = EnemyState.Terminated;
-            // Remove from physics layers
             CollisionLayer = 0;
             CollisionMask = 0;
-            // After death
             SpiderManager.Instance.UnregisterEnemy(this);
         }
     }

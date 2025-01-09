@@ -1,0 +1,24 @@
+[gd_scene load_steps=4 format=3 uid="uid://dycw72rpuodes"]
+
+[ext_resource type="Script" path="res://scenes/enemies/thing/Thing.cs" id="1_405bh"]
+[ext_resource type="Texture2D" uid="uid://uf8g56qdcae6" path="res://content/art/enemies/201805_human_skeleton.png" id="1_eogrr"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_8hns4"]
+radius = 8.0
+height = 60.0
+
+[node name="Thing" type="CharacterBody2D"]
+script = ExtResource("1_405bh")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+scale = Vector2(0.034375, 0.034375)
+texture = ExtResource("1_eogrr")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CapsuleShape2D_8hns4")
+
+[node name="PathFindTimer" type="Timer" parent="."]
+wait_time = 0.1
+
+[connection signal="timeout" from="PathFindTimer" to="." method="OnPathFindTimerTimeout"]
