@@ -1,3 +1,4 @@
+#nullable enable
 using Godot;
 using System;
 using System.Collections.Generic;
@@ -5,6 +6,8 @@ using SwampGame.data;
 
 public partial class Thing : CharacterBody2D
 {
+	[Export]
+	public bool _showDebug = true;
 	public const float Speed = 300.0f;
 	public const float JumpVelocity = 500.0f;
 	public const float SmallJumpVelocity = 390.0f;
@@ -27,6 +30,37 @@ public partial class Thing : CharacterBody2D
 		_startTime = GetNode<Timer>("PathFindTimer");
 	}
 
+	public void ShowDebugLines()
+	{
+		PointInfo? p1 = null;
+		PointInfo? p2 = null;
+		foreach (var point in _path)
+		{
+			if (p1 == null)
+			{
+				p1 = point;
+			}
+			else
+			{
+				p2 = point;
+			}
+
+			if (p1 != null && p2 != null)
+			{
+				DrawDebugLine(p1.Position, p2.Position, new Color("#ff1100"));
+				p1 = null;
+				p2 = null;
+			}
+		}
+	}
+	
+	private void DrawDebugLine(Vector2 to, Vector2 from, Color color)
+	{
+		if(!_showDebug)
+			return;
+		DrawLine(to, from, color);
+	}
+	
 	private void OnPathFindTimerTimeout()
 	{
 		// if (IsOnFloor() && _player.IsOnFloor()) 	// <- This line of code
@@ -68,7 +102,7 @@ public partial class Thing : CharacterBody2D
 		Vector2 direction = Vector2.Zero;
 
 		// Handle start hunt.
-		if (Input.IsActionJustPressed("ui_accept"))
+		if (Input.IsActionJustPressed("jump"))
 			_startTime.Start();
 
 		// Add the gravity.
@@ -109,6 +143,7 @@ public partial class Thing : CharacterBody2D
 
 		Velocity = velocity;
 		MoveAndSlide();
+		ShowDebugLines();
 	}
 
 	private bool JumpRightEdgeToLeftEdge()

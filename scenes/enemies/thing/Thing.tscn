@@ -19,6 +19,6 @@ texture = ExtResource("1_eogrr")
 shape = SubResource("CapsuleShape2D_8hns4")
 
 [node name="PathFindTimer" type="Timer" parent="."]
-wait_time = 0.1
+wait_time = 0.3
 
 [connection signal="timeout" from="PathFindTimer" to="." method="OnPathFindTimerTimeout"]
