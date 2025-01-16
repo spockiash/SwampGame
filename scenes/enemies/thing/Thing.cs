@@ -2,6 +2,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using SwampGame.data;
 
 public partial class Thing : CharacterBody2D
@@ -28,37 +29,6 @@ public partial class Thing : CharacterBody2D
 		_pathFind2D = FindParent("Level1").FindChild("PlatformLayer") as PlatformLayer;
 		_player = FindParent("Level1").FindChild("Player") as Player;
 		_startTime = GetNode<Timer>("PathFindTimer");
-	}
-
-	public void ShowDebugLines()
-	{
-		PointInfo? p1 = null;
-		PointInfo? p2 = null;
-		foreach (var point in _path)
-		{
-			if (p1 == null)
-			{
-				p1 = point;
-			}
-			else
-			{
-				p2 = point;
-			}
-
-			if (p1 != null && p2 != null)
-			{
-				DrawDebugLine(p1.Position, p2.Position, new Color("#ff1100"));
-				p1 = null;
-				p2 = null;
-			}
-		}
-	}
-	
-	private void DrawDebugLine(Vector2 to, Vector2 from, Color color)
-	{
-		if(!_showDebug)
-			return;
-		DrawLine(to, from, color);
 	}
 	
 	private void OnPathFindTimerTimeout()
@@ -92,6 +62,7 @@ public partial class Thing : CharacterBody2D
 	private void DoPathFinding()
 	{
 		var playerTilePosition = _pathFind2D.LocalToMap(_player.Position);
+		var pos = _pathFind2D.MapToLocal(playerTilePosition);
 		_path = _pathFind2D.GetPlaform2DPath(this.Position, _pathFind2D.MapToLocal(playerTilePosition));
 		GoToNextPointInPath();
 	}
@@ -143,7 +114,7 @@ public partial class Thing : CharacterBody2D
 
 		Velocity = velocity;
 		MoveAndSlide();
-		ShowDebugLines();
+		_pathFind2D.SetEnemyPath(_path.ToList());
 	}
 
 	private bool JumpRightEdgeToLeftEdge()

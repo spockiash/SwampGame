@@ -1,3 +1,4 @@
+#nullable enable
 using Godot;
 using System;
 using System.Collections.Generic;
@@ -23,6 +24,8 @@ public partial class PlatformLayer : TileMapLayer
 	private PackedScene _graphPoint;
 	private List<PointInfo> _pointInfoList;
 
+	private List<PointInfo>? _pathfindEnemyDebug; //used for debugging, set only per one enemy
+
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
 	{
@@ -40,12 +43,52 @@ public partial class PlatformLayer : TileMapLayer
 		if (ShowDebugGraph)
 		{
 			ConnectPoints();
+			DrawEnemyLine();	
 		}
 	}
 
 	// Called every frame. 'delta' is the elapsed time since the previous frame.
 	public override void _Process(double delta)
 	{
+	}
+
+	public void SetEnemyPath(List<PointInfo> pathInfo)
+	{
+
+			_pathfindEnemyDebug = pathInfo;
+			QueueRedraw();
+
+	}
+
+	public List<PointInfo>? GetEnemyPath()
+	{
+		return _pathfindEnemyDebug;
+	}
+
+	public void DrawEnemyLine()
+	{
+		if (_pathfindEnemyDebug == null || _pathfindEnemyDebug.Count == 0)
+			return;
+		PointInfo? p1 = null;
+		PointInfo? p2 = null;
+		foreach (var point in _pathfindEnemyDebug)
+		{
+			if (p1 == null)
+			{
+				p1 = point;
+			}
+			else
+			{
+				p2 = point;
+			}
+
+			if (p1 != null && p2 != null)
+			{
+				DrawDebugLine(p1.Position, p2.Position, new Color("#ff1100"));
+				p1 = null;
+				p2 = null;
+			}
+		}
 	}
 	
 	// Expose a method to get the closest graph point
@@ -99,9 +142,9 @@ public partial class PlatformLayer : TileMapLayer
 		return pathStackReversed;
 	}
 
-	public System.Collections.Generic.Stack<PointInfo> GetPlaform2DPath(Vector2 startPos, Vector2 endPos)
+	public Stack<PointInfo> GetPlaform2DPath(Vector2 startPos, Vector2 endPos)
 	{
-		System.Collections.Generic.Stack<PointInfo> pathStack = new System.Collections.Generic.Stack<PointInfo>();
+		Stack<PointInfo> pathStack = new Stack<PointInfo>();
 		// Find the path between the start and end position
 		var idPath = _astarGraph.GetIdPath(_astarGraph.GetClosestPoint(startPos), _astarGraph.GetClosestPoint(endPos));
 
@@ -644,5 +687,22 @@ public partial class PlatformLayer : TileMapLayer
 	{
 		// If a tile does not exist above (Y - 1)
 		return GetCellSourceId(new Vector2I(tile.X, tile.Y - 1)) != CellIsEmpty;
+	}
+	
+	private bool HasClearLineOfSight(Vector2 start, Vector2 end, uint collisionMask = uint.MaxValue,
+		bool collideWithAreas = false, bool collideWithBodies = true)
+	{
+		var spaceState = GetWorld2D().DirectSpaceState;
+
+		// Create ray parameters
+		var rayParams = PhysicsRayQueryParameters2D.Create(start, end, collisionMask);
+		rayParams.CollideWithAreas = collideWithAreas;
+		rayParams.CollideWithBodies = collideWithBodies;
+
+		// Perform the raycast
+		var result = spaceState.IntersectRay(rayParams);
+
+		// If the result has no hits, line of sight is clear
+		return result.Count == 0;
 	}
 }
