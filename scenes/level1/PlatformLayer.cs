@@ -399,26 +399,36 @@ public partial class PlatformLayer : TileMapLayer
 		{
 			PointInfo closest = null;
 
+			// Loop through the point info list
 			foreach (var p2 in _pointInfoList)
 			{
-				if (p1.PointId == p2.PointId) continue; // Skip self
+				if (p1.PointId == p2.PointId) { continue; } // If the points are the same, go to the next point
 
-				// Ensure points are on the same height and valid for horizontal connections
-				if ((p2.IsRightEdge || p2.IsRightWall || p2.IsFallTile) &&
-				    p2.Position.Y == p1.Position.Y &&
-				    p2.Position.X > p1.Position.X)
+				// If the point is a right edge or a right wall, and the height (Y position) is the same, and the p2 position is to the right of the p1 point
+				if ((p2.IsRightEdge || p2.IsRightWall || p2.IsFallTile) && p2.Position.Y == p1.Position.Y && p2.Position.X > p1.Position.X)
 				{
-					if (closest == null || p2.Position.X < closest.Position.X)
+					// If the closest point has not yet been initialized
+					if (closest == null)
 					{
-						closest = p2; // Update closest point
+						closest = new PointInfo(p2.PointId, p2.Position);   // Initialize it to the p2 point
+					}
+					// If the p2 point is closer than the current closest point
+					if (p2.Position.X < closest.Position.X)
+					{
+						closest.Position = p2.Position; // Update the closest point position
+						closest.PointId = p2.PointId;   // Update the pointId
 					}
 				}
 			}
-
-			if (closest != null && !HorizontalConnectionCannotBeMade(LocalToMap(p1.Position), LocalToMap(closest.Position)))
+			// If a closest point was found
+			if (closest != null)
 			{
-				_astarGraph.ConnectPoints(p1.PointId, closest.PointId); // Connect nodes
-				DrawDebugLine(p1.Position, closest.Position, new Color(0, 1, 0, 1)); // Draw connection
+				// If a horizontal connection cannot be made
+				if (!HorizontalConnectionCannotBeMade((Vector2I)p1.Position, (Vector2I)closest.Position))
+				{
+					_astarGraph.ConnectPoints(p1.PointId, closest.PointId);                 // Connect the points
+					DrawDebugLine(p1.Position, closest.Position, new Color(0, 1, 0, 1));    // Draw a green line between the points
+				}
 			}
 		}
 	}
